@@ -83,6 +83,9 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Rename { old_name, new_name } => {
             commands::rename::execute(old_name, new_name)?;
         }
+        Commands::SshKey { command } => {
+            commands::ssh_key::execute(command)?;
+        }
     }
 
     Ok(())

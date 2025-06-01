@@ -5,4 +5,5 @@ pub mod new;
 pub mod remove;
 pub mod rename;
 pub mod show;
+pub mod ssh_key;
 pub mod use_profile;

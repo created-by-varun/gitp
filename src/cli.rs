@@ -122,8 +122,11 @@ pub enum Commands {
         new_name: String,
     },
     // Future commands to be added:
-    // /// Manage SSH keys (TODO: further define subcommands like add, list, remove)
-    // SshKey { #[command(subcommand)] command: SshKeyCommands },
+    /// Manage SSH keys associated with profiles
+    SshKey {
+        #[command(subcommand)]
+        command: SshKeyCommands,
+    },
     /// Display the current Git user name, email, and signing key
     Current,
     // /// Export a profile
@@ -140,20 +143,29 @@ pub enum Commands {
     // },
 }
 
+#[derive(Subcommand, Debug, Clone)]
+pub enum SshKeyCommands {
+    /// Set or update the SSH key path for a profile
+    Set {
+        /// Name of the profile
+        profile_name: String,
+        /// Path to the SSH private key (e.g., ~/.ssh/id_rsa_work)
+        key_path: String,
+    },
+    /// Remove the SSH key association from a profile
+    Remove {
+        /// Name of the profile
+        profile_name: String,
+    },
+    /// Show the SSH key path associated with a profile
+    Show {
+        /// Name of the profile
+        profile_name: String,
+    },
+}
+
 // For future implementation
 // #[derive(Subcommand)]
-// pub enum SshCommands {
-//     /// Add SSH key to profile
-//     Add {
-//         /// Profile name
-//         profile: String,
-//         /// SSH key path
-//         key_path: String,
-//     },
-//     /// Generate SSH config
-//     Config {
-//         /// Generate config entries
-//         #[command(subcommand)]
-//         action: SshConfigAction,
-//     },
+// pub enum SshConfigCommands { // Renamed from SshConfigAction for clarity
+//     // Define actions like GenerateHostEntry, RemoveHostEntry etc.
 // }
