@@ -20,7 +20,7 @@ A fast and intuitive git profile switcher written in Rust, with support for SSH 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Clone and install
-git clone https://github.com/yourusername/gitp.git
+git clone https://github.com/created-by-varun/gitp.git
 cd gitp
 cargo install --path .
 ```
