@@ -53,12 +53,38 @@ pub fn set_git_config(key: &str, value: &str, scope: GitConfigScope) -> Result<(
 /// Unsets a Git configuration value.
 /// It's not an error if the key doesn't exist.
 pub fn unset_git_config(key: &str, scope: GitConfigScope) -> Result<()> {
-    // Use --get to check if the key exists. If it doesn't, `git config --unset` would error.
-    // However, `git config --unset` itself returns success (exit code 0) if the key doesn't exist,
-    // but it returns exit code 5 if the key exists but couldn't be unset from a specific file (which is fine for us).
-    // So, we can directly call unset.
-    run_git_command(&["config", scope.as_arg(), "--unset", key])
-        .with_context(|| format!("Failed to unset Git config {} ({:?})", key, scope))
+    let args = &["config", scope.as_arg(), "--unset", key];
+    let command_str = format!("git {}", args.join(" "));
+
+    let output = Command::new("git")
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .with_context(|| {
+            format!(
+                "Failed to execute command to unset Git config: {}",
+                command_str
+            )
+        })?;
+
+    if output.status.success() {
+        // Key was found and successfully removed
+        Ok(())
+    } else if output.status.code() == Some(5) {
+        // Key was not found, which is fine for an unset operation.
+        Ok(())
+    } else {
+        // Another error occurred
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!(
+            "Failed to unset Git config key '{}' ({:?}): {}\n{}",
+            key,
+            scope,
+            command_str.red(),
+            stderr.trim().red()
+        );
+    }
 }
 
 /// Gets a Git configuration value.

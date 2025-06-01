@@ -1,37 +1,35 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::Colorize;
 
-use crate::config::Config;
-use crate::commands::list::print_profile_detailed; // Import the shared function
+use crate::git::{get_git_config, GitConfigScope};
 
-pub fn execute(show_config: bool) -> Result<()> {
-    let config = Config::load().context("Failed to load configuration.")?;
-
-    if let Some(profile_name) = &config.current_profile {
-        if show_config {
-            println!("Current active profile (full configuration):");
-            if let Some(profile_details) = config.profiles.get(profile_name) {
-                // Pass Some(profile_name) as current_profile to ensure it's highlighted correctly
-                print_profile_detailed(profile_name, profile_details, Some(profile_name));
-            } else {
-                // This case should ideally not happen if current_profile is set and valid
-                println!(
-                    "{}",
-                    format!(
-                        "Warning: Current profile '{}' is set but its details were not found in the configuration.",
-                        profile_name
-                    ).yellow()
-                );
-            }
-        } else {
-            println!("Current active profile: {}", profile_name.green().bold());
-        }
-    } else {
-        println!(
-            "No profile is currently active. Use '{}' to activate one.",
-            "gitp use <profile_name>".cyan()
-        );
+fn print_config_value(label: &str, local_val: Option<String>, global_val: Option<String>) {
+    match (local_val, global_val) {
+        (Some(l), _) => println!("  {}: {} {}", label.dimmed(), l.green(), "(local)".cyan()),
+        (None, Some(g)) => println!("  {}: {} {}", label.dimmed(), g.green(), "(global)".blue()),
+        (None, None) => println!("  {}: {}", label.dimmed(), "Not set".yellow()),
     }
+}
+
+pub fn execute() -> Result<()> {
+    println!("{}", "Current Git Configuration:".bold().underline());
+
+    let user_name_local = get_git_config("user.name", GitConfigScope::Local)?;
+    let user_name_global = get_git_config("user.name", GitConfigScope::Global)?;
+    print_config_value("User Name", user_name_local, user_name_global);
+
+    let user_email_local = get_git_config("user.email", GitConfigScope::Local)?;
+    let user_email_global = get_git_config("user.email", GitConfigScope::Global)?;
+    print_config_value("User Email", user_email_local, user_email_global);
+
+    let signing_key_local = get_git_config("user.signingkey", GitConfigScope::Local)?;
+    let signing_key_global = get_git_config("user.signingkey", GitConfigScope::Global)?;
+    print_config_value("Signing Key", signing_key_local, signing_key_global);
+
+    println!(
+        "\n{}",
+        "Note: Values are read directly from Git. Local settings override global settings.".dimmed()
+    );
 
     Ok(())
 }

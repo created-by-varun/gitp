@@ -135,12 +135,16 @@ pub fn execute(
             .default(true)
             .interact()?
         {
-            // For now, just print the command. Direct execution can be added later.
-            println!(
-                "To use this profile, run: {}",
-                format!("gitp use {}", profile_name).yellow()
-            );
-            println!("Note: Full activation logic for 'gitp use' is pending implementation.");
+            // Directly call the use_profile execute function
+            // Defaulting to global activation (local=false, global=true)
+            match crate::commands::use_profile::execute(profile_name.clone(), false, true) {
+                Ok(_) => println!("Profile '{}' activated globally.", profile_name.green()),
+                Err(e) => eprintln!(
+                    "Failed to activate profile '{}': {}",
+                    profile_name.yellow(),
+                    e.to_string().red()
+                ),
+            }
         } else {
             println!(
                 "You can activate it later using: {}",

@@ -54,8 +54,8 @@ fn run(cli: Cli) -> Result<()> {
         } => {
             commands::use_profile::execute(name, local, global)?;
         }
-        Commands::Current { show_config } => {
-            commands::current::execute(show_config)?;
+        Commands::Current => {
+            commands::current::execute()?;
         }
         Commands::Show { name } => {
             commands::show::execute(name)?;

@@ -71,13 +71,6 @@ pub enum Commands {
         global: bool,
     },
 
-    /// Show current active profile
-    Current {
-        /// Show full configuration
-        #[arg(short = 'c', long)]
-        show_config: bool,
-    },
-
     /// Show profile details
     Show {
         /// Profile name
@@ -129,18 +122,10 @@ pub enum Commands {
         new_name: String,
     },
     // Future commands to be added:
-    // /// Manage SSH configurations
-    // Ssh {
-    //     #[command(subcommand)]
-    //     command: SshCommands,
-    // },
-
-    // /// Manage auto-switching rules
-    // Auto {
-    //     #[command(subcommand)]
-    //     command: AutoCommands,
-    // },
-
+    // /// Manage SSH keys (TODO: further define subcommands like add, list, remove)
+    // SshKey { #[command(subcommand)] command: SshKeyCommands },
+    /// Display the current Git user name, email, and signing key
+    Current,
     // /// Export a profile
     // Export {
     //     /// Profile name
