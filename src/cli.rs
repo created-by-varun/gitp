@@ -127,10 +127,18 @@ pub enum Commands {
 
         // HTTPS Credentials (for non-interactive mode)
         /// New hostname for HTTPS (e.g., github.com). Conflicts with --https-remove-credentials.
-        #[arg(long, group = "https_edit_details_group", conflicts_with = "https_remove_credentials")]
+        #[arg(
+            long,
+            group = "https_edit_details_group",
+            conflicts_with = "https_remove_credentials"
+        )]
         https_host: Option<String>,
         /// New username for HTTPS (requires --https-host). Conflicts with --https-remove-credentials.
-        #[arg(long, requires = "https_host", conflicts_with = "https_remove_credentials")]
+        #[arg(
+            long,
+            requires = "https_host",
+            conflicts_with = "https_remove_credentials"
+        )]
         https_username: Option<String>,
         /// New token for HTTPS (requires --https-host and --https-username). Conflicts with --https-remove-credentials.
         #[arg(long, requires_all = ["https_host", "https_username"], conflicts_with = "https_remove_credentials")]
