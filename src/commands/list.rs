@@ -40,7 +40,7 @@ pub fn execute(verbose: bool) -> Result<()> {
     Ok(())
 }
 
-fn print_profile_detailed(name: &str, profile: &Profile, current_profile: Option<&str>) {
+pub fn print_profile_detailed(name: &str, profile: &Profile, current_profile: Option<&str>) {
     // Header
     if Some(name) == current_profile {
         println!(
