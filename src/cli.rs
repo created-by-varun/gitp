@@ -28,21 +28,25 @@ pub enum Commands {
         /// Profile name
         name: String,
 
-        /// Use interactive mode
-        #[arg(short, long)]
-        interactive: bool,
-        // These will be added in Phase 1 implementation
-        // /// Git user name
-        // #[arg(long)]
-        // git_name: Option<String>,
+        /// Git user name (for non-interactive mode)
+        #[arg(long)]
+        user_name: Option<String>,
 
-        // /// Git user email
-        // #[arg(long)]
-        // email: Option<String>,
+        /// Git user email (for non-interactive mode)
+        #[arg(long)]
+        user_email: Option<String>,
 
-        // /// SSH key path
-        // #[arg(long)]
-        // ssh_key: Option<String>,
+        /// Git signing key (for non-interactive mode)
+        #[arg(long)]
+        signing_key: Option<String>,
+
+        /// Path to the SSH key (for non-interactive mode)
+        #[arg(long)]
+        ssh_key_path: Option<String>,
+
+        /// GPG key ID for signing (for non-interactive mode)
+        #[arg(long)]
+        gpg_key_id: Option<String>,
     },
 
     /// List all profiles
@@ -84,6 +88,26 @@ pub enum Commands {
     Edit {
         /// Profile name
         name: String,
+
+        /// New Git user name (for non-interactive mode)
+        #[arg(long)]
+        user_name: Option<String>,
+
+        /// New Git user email (for non-interactive mode)
+        #[arg(long)]
+        user_email: Option<String>,
+
+        /// New Git signing key (for non-interactive mode)
+        #[arg(long)]
+        signing_key: Option<String>,
+
+        /// New path to the SSH key (for non-interactive mode)
+        #[arg(long)]
+        ssh_key_path: Option<String>,
+
+        /// New GPG key ID for signing (for non-interactive mode)
+        #[arg(long)]
+        gpg_key_id: Option<String>,
     },
 
     /// Remove a profile

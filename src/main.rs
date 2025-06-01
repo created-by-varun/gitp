@@ -27,8 +27,22 @@ fn main() -> Result<()> {
 
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
-        Commands::New { name, interactive } => {
-            commands::new::execute(name, interactive)?;
+        Commands::New {
+            name,
+            user_name,
+            user_email,
+            signing_key,
+            ssh_key_path,
+            gpg_key_id,
+        } => {
+            commands::new::execute(
+                name,
+                user_name,
+                user_email,
+                signing_key,
+                ssh_key_path,
+                gpg_key_id,
+            )?;
         }
         Commands::List { verbose } => {
             commands::list::execute(verbose)?;
@@ -46,8 +60,22 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Show { name } => {
             commands::show::execute(name)?;
         }
-        Commands::Edit { name } => {
-            commands::edit::execute(name)?;
+        Commands::Edit {
+            name,
+            user_name,
+            user_email,
+            signing_key,
+            ssh_key_path,
+            gpg_key_id,
+        } => {
+            commands::edit::execute(
+                name,
+                user_name,
+                user_email,
+                signing_key,
+                ssh_key_path,
+                gpg_key_id,
+            )?;
         }
         Commands::Remove { name, force } => {
             commands::remove::execute(name, force)?;
