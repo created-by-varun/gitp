@@ -170,6 +170,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_set_get_unset_global_config() -> Result<()> {
         // These tests modify global Git config, use with caution or mock if possible.
         // For now, ensure cleanup.

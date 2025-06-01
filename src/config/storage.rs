@@ -72,7 +72,7 @@ mod tests {
     use tempfile::tempdir;
 
     // Helper to set up a temporary config directory for tests
-    fn setup_temp_config_env(temp_dir: &std::path::Path) -> Result<()> {
+    fn _setup_temp_config_env(temp_dir: &std::path::Path) -> Result<()> {
         let mock_config_path = temp_dir.join(CONFIG_DIR_NAME);
         std::fs::create_dir_all(&mock_config_path)?;
         // Mock dirs::config_dir() by setting an environment variable or using a mocking library
@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn test_get_config_path_creates_dir() -> Result<()> {
         let _temp_dir = tempdir()?;
-        let mock_user_config_dir = temp_dir.path();
+        let mock_user_config_dir = _temp_dir.path();
 
         // This test relies on dirs::config_dir() returning a path that we can intercept
         // or predict. For a real unit test, you'd mock `dirs::config_dir()`.
@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn test_save_and_load_config() -> Result<()> {
-        let temp_dir = tempdir()?;
+        let _temp_dir = tempdir()?;
         // Again, this test would be much cleaner if `get_config_path` was mockable.
         // We'll proceed by assuming `get_config_path` can be influenced or we test its effects.
 
