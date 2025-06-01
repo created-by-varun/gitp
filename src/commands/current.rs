@@ -28,7 +28,8 @@ pub fn execute() -> Result<()> {
 
     println!(
         "\n{}",
-        "Note: Values are read directly from Git. Local settings override global settings.".dimmed()
+        "Note: Values are read directly from Git. Local settings override global settings."
+            .dimmed()
     );
 
     Ok(())
