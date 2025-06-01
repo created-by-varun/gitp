@@ -1,3 +1,4 @@
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -95,8 +96,12 @@ impl Profile {
             return Err(ValidationError::EmptyEmail);
         }
 
-        // Basic email validation
-        if !self.git_config.user_email.contains('@') {
+        // Enhanced email validation using regex
+        // This regex is a common pattern, not strictly RFC 5322 compliant but good for most cases.
+        let email_regex_str = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
+        let email_regex = Regex::new(email_regex_str).unwrap(); // In a real app, handle unwrap better or use once_cell
+
+        if !email_regex.is_match(&self.git_config.user_email) {
             return Err(ValidationError::InvalidEmail(
                 self.git_config.user_email.clone(),
             ));
@@ -106,6 +111,22 @@ impl Profile {
         if let Some(ref ssh_key) = self.ssh_key {
             if !ssh_key.exists() {
                 return Err(ValidationError::SshKeyNotFound(ssh_key.clone()));
+            }
+        }
+
+        // Validate GPG key format if provided
+        if let Some(ref gpg_key_id) = self.gpg_key {
+            if gpg_key_id.is_empty() {
+                // An explicitly provided GPG key ID should not be empty.
+                // If no GPG key is intended, gpg_key should be None.
+                return Err(ValidationError::InvalidGpgKeyFormat(gpg_key_id.clone()));
+            }
+            // Regex for 8, 16, or 40 hex characters
+            let gpg_key_regex_str = r"^[0-9A-Fa-f]{8}([0-9A-Fa-f]{8})?([0-9A-Fa-f]{24})?$";
+            let gpg_key_regex = Regex::new(gpg_key_regex_str).unwrap(); // Handle unwrap better in prod
+
+            if !gpg_key_regex.is_match(gpg_key_id) {
+                return Err(ValidationError::InvalidGpgKeyFormat(gpg_key_id.clone()));
             }
         }
 
@@ -129,6 +150,9 @@ pub enum ValidationError {
 
     #[error("SSH key not found: {0}")]
     SshKeyNotFound(PathBuf),
+
+    #[error("Invalid GPG key format: {0}. Expected 8, 16, or 40 hex characters.")]
+    InvalidGpgKeyFormat(String),
 }
 
 #[cfg(test)]

@@ -434,6 +434,7 @@ dependencies = [
  "dirs",
  "git2",
  "predicates",
+ "regex",
  "serde",
  "serde_json",
  "serial_test",

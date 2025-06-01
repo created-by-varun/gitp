@@ -115,7 +115,8 @@ pub fn execute(
             ValidationError::EmptyUserName => bail!("User name cannot be empty (internal validation). This should be caught by prompt validation."),
             ValidationError::EmptyEmail => bail!("User email cannot be empty (internal validation). This should be caught by prompt validation."),
             ValidationError::InvalidEmail(email) => bail!("Invalid email format provided: '{}'. Please enter a valid email.", email.yellow()),
-            ValidationError::SshKeyNotFound(path) => bail!("SSH key not found at path: '{}' (internal validation). This field is not prompted yet.", path.display()),
+            ValidationError::SshKeyNotFound(path) => bail!("SSH key not found at path: '{}'. Please ensure the path is correct and the key exists.", path.display()),
+            ValidationError::InvalidGpgKeyFormat(key_id) => bail!("Invalid GPG key format for '{}'. Expected 8, 16, or 40 hexadecimal characters.", key_id.yellow()),
         }
     }
 
