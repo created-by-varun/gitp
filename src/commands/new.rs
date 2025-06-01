@@ -212,14 +212,35 @@ pub fn execute(
 
     // Validate the newly created profile
     if let Err(validation_error) = new_profile.validate() {
-        match validation_error {
-            ValidationError::EmptyName => bail!("Profile name cannot be empty (internal validation). This should ideally be caught earlier."),
-            ValidationError::EmptyUserName => bail!("User name cannot be empty (internal validation). This should be caught by prompt validation."),
-            ValidationError::EmptyEmail => bail!("User email cannot be empty (internal validation). This should be caught by prompt validation."),
-            ValidationError::InvalidEmail(email) => bail!("Invalid email format provided: '{}'. Please enter a valid email.", email.yellow()),
-            ValidationError::SshKeyNotFound(path) => bail!("SSH key not found at path: '{}'. Please ensure the path is correct and the key exists.", path.display()),
-            ValidationError::InvalidGpgKeyFormat(key_id) => bail!("Invalid GPG key format for '{}'. Expected 8, 16, or 40 hexadecimal characters.", key_id.yellow()),
-        }
+        let error_message = match validation_error {
+            ValidationError::EmptyName => "Profile name cannot be empty.".to_string(),
+            ValidationError::EmptyUserName => "User name cannot be empty.".to_string(),
+            ValidationError::EmptyEmail => "User email cannot be empty.".to_string(),
+            ValidationError::InvalidEmail(email) => format!("Invalid email format: '{}'.", email),
+            ValidationError::SshKeyNotFound(path) => {
+                format!("SSH key not found: '{}'.", path.display())
+            }
+            ValidationError::InvalidGpgKeyFormat(key) => {
+                format!(
+                    "Invalid GPG key format for '{}'. Expected 8, 16, or 40 hex characters.",
+                    key
+                )
+            }
+            ValidationError::EmptyHttpsHost => {
+                "HTTPS credentials host cannot be empty.".to_string()
+            }
+            ValidationError::EmptyHttpsUsername => {
+                "HTTPS credentials username cannot be empty.".to_string()
+            }
+            ValidationError::EmptyHttpsToken => {
+                "HTTPS credentials token cannot be empty when type is Token.".to_string()
+            }
+            ValidationError::EmptyHttpsKeychainRef => {
+                "HTTPS credentials keychain reference cannot be empty when type is KeychainRef."
+                    .to_string()
+            }
+        };
+        bail!(error_message);
     }
 
     config.profiles.insert(profile_name.clone(), new_profile);

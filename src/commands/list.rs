@@ -70,6 +70,24 @@ pub fn print_profile_detailed(name: &str, profile: &Profile, current_profile: Op
         println!("  {} {}", "GPG Key:".cyan(), gpg_key);
     }
 
+    // HTTPS Credentials
+    if let Some(https_creds) = &profile.https_credentials {
+        println!(
+            "  {} {} ({})",
+            "HTTPS:".cyan(),
+            https_creds.host.yellow(),
+            https_creds.username
+        );
+        match &https_creds.credential_type {
+            crate::config::CredentialType::Token(_) => {
+                println!("    {} {}", "Type:".cyan(), "Token (<masked>)".dimmed());
+            }
+            crate::config::CredentialType::KeychainRef(reference) => {
+                println!("    {} Keychain Ref ({})", "Type:".cyan(), reference);
+            }
+        }
+    }
+
     if !profile.custom_config.is_empty() {
         println!("  {}:", "Custom Config:".cyan());
         for (key, value) in &profile.custom_config {

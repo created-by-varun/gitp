@@ -376,9 +376,23 @@ pub fn execute(
 
     // Validate the modified profile
     if let Err(validation_error) = profile_to_edit.validate() {
+        let error_message = match validation_error {
+            crate::config::ValidationError::EmptyName => "Profile name cannot be empty.".to_string(),
+            crate::config::ValidationError::EmptyUserName => "User name cannot be empty.".to_string(),
+            crate::config::ValidationError::EmptyEmail => "User email cannot be empty.".to_string(),
+            crate::config::ValidationError::InvalidEmail(email) => format!("Invalid email format: '{}'.", email),
+            crate::config::ValidationError::SshKeyNotFound(path) => format!("SSH key not found: '{}'.", path.display()),
+            crate::config::ValidationError::InvalidGpgKeyFormat(key) => {
+                format!("Invalid GPG key format for '{}'. Expected 8, 16, or 40 hex characters.", key)
+            }
+            crate::config::ValidationError::EmptyHttpsHost => "HTTPS credentials host cannot be empty.".to_string(),
+            crate::config::ValidationError::EmptyHttpsUsername => "HTTPS credentials username cannot be empty.".to_string(),
+            crate::config::ValidationError::EmptyHttpsToken => "HTTPS credentials token cannot be empty when type is Token.".to_string(),
+            crate::config::ValidationError::EmptyHttpsKeychainRef => "HTTPS credentials keychain reference cannot be empty when type is KeychainRef.".to_string(),
+        };
         bail!(
             "Profile validation failed after edits: {}\nChanges not saved.",
-            validation_error.to_string().red()
+            error_message.red()
         );
     }
 
