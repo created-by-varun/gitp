@@ -14,7 +14,7 @@ pub fn execute(
     cli_https_host: Option<String>,
     cli_https_username: Option<String>,
     cli_https_token: Option<String>,
-    cli_https_keychain_ref: Option<String>,
+    cli_https_store_in_keychain: bool, // Updated argument
     cli_ssh_key_host: Option<String>,
 ) -> Result<()> {
     let mut config = Config::load().context("Failed to load configuration. Ensure ~/.config/gitp/config.toml is accessible or run init if applicable.")?;
@@ -68,35 +68,51 @@ pub fn execute(
         }
 
         // Handle HTTPS credentials in non-interactive mode
-        if let (Some(host), Some(username)) = (&cli_https_host, &cli_https_username) {
-            if !host.trim().is_empty() && !username.trim().is_empty() {
-                let credential_detail = if let Some(token) = &cli_https_token {
-                    if !token.trim().is_empty() {
-                        Some(CredentialType::Token(token.trim().to_string()))
-                    } else {
-                        None
-                    }
-                } else if let Some(keychain_ref) = &cli_https_keychain_ref {
-                    if !keychain_ref.trim().is_empty() {
-                        Some(CredentialType::KeychainRef(keychain_ref.trim().to_string()))
-                    } else {
-                        None
+        if let (Some(host_str), Some(username_str), Some(token_str)) =
+            (&cli_https_host, &cli_https_username, &cli_https_token)
+        {
+            if !host_str.trim().is_empty()
+                && !username_str.trim().is_empty()
+                && !token_str.trim().is_empty()
+            {
+                let host = host_str.trim().to_string();
+                let username = username_str.trim().to_string();
+                let token = token_str.trim().to_string();
+
+                let credential_type = if cli_https_store_in_keychain {
+                    match crate::credentials::keyring::store_token(&host, &username, &token) {
+                        Ok(_) => {
+                            println!(
+                                "  Stored HTTPS token for {}@{} in keychain.",
+                                username.cyan(),
+                                host.green()
+                            );
+                            CredentialType::KeychainRef(username.clone())
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "  {}: Failed to store HTTPS token in keychain for {}@{}: {}. Storing as plain text instead.",
+                                "Warning".yellow(),
+                                username.cyan(),
+                                host.green(),
+                                e
+                            );
+                            CredentialType::Token(token)
+                        }
                     }
                 } else {
-                    None
+                    CredentialType::Token(token)
                 };
 
-                if let Some(cred_type) = credential_detail {
-                    new_profile.https_credentials = Some(HttpsCredentials {
-                        host: host.trim().to_string(),
-                        username: username.trim().to_string(),
-                        credential_type: cred_type,
-                    });
-                    println!(
-                        "  Configured HTTPS credentials for host: {}",
-                        host.trim().green()
-                    );
-                }
+                new_profile.https_credentials = Some(HttpsCredentials {
+                    host,
+                    username,
+                    credential_type,
+                });
+                println!(
+                    "  Configured HTTPS credentials for host: {}",
+                    host_str.trim().green()
+                );
             }
         }
     } else {
@@ -182,41 +198,44 @@ pub fn execute(
                 bail!("HTTPS username cannot be empty if host is provided. HTTPS credentials setup aborted.");
             }
 
-            let credential_choices = &["Personal Access Token (PAT)", "System Keychain Reference"];
-            let credential_selection: usize =
-                dialoguer::Select::with_theme(&ColorfulTheme::default())
-                    .with_prompt("Choose HTTPS credential type")
-                    .items(credential_choices)
-                    .default(0)
-                    .interact()
-                    .context("Failed to get credential type choice.")?;
+            let token_input: String = Password::with_theme(&ColorfulTheme::default())
+                .with_prompt("Enter HTTPS Token")
+                .with_confirmation("Confirm HTTPS Token", "Tokens do not match.")
+                .interact()
+                .context("Failed to get HTTPS token input.")?;
+            if token_input.trim().is_empty() {
+                bail!("Token cannot be empty. HTTPS credentials setup aborted.");
+            }
 
-            let credential_type_value = match credential_selection {
-                0 => {
-                    // Token
-                    let token_input: String = Password::with_theme(&ColorfulTheme::default())
-                        .with_prompt("Enter Personal Access Token")
-                        .interact()
-                        .context("Failed to get token input.")?;
-                    if token_input.trim().is_empty() {
-                        bail!("Token cannot be empty. HTTPS credentials setup aborted.");
-                    }
-                    CredentialType::Token(token_input.trim().to_string())
-                }
-                1 => {
-                    // KeychainRef
-                    let keychain_ref_input: String = Input::with_theme(&ColorfulTheme::default())
-                        .with_prompt("Enter Keychain Reference string")
-                        .interact_text()
-                        .context("Failed to get keychain reference input.")?;
-                    if keychain_ref_input.trim().is_empty() {
-                        bail!(
-                            "Keychain reference cannot be empty. HTTPS credentials setup aborted."
+            let credential_type_value = if Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Store this HTTPS token securely in the system keychain?")
+                .default(true)
+                .interact()?
+            {
+                match crate::credentials::keyring::store_token(
+                    https_host_input.trim(),
+                    https_username_input.trim(),
+                    token_input.trim(),
+                ) {
+                    Ok(_) => {
+                        println!(
+                            "  Stored HTTPS token for {}@{} in keychain.",
+                            https_username_input.trim().cyan(),
+                            https_host_input.trim().green()
                         );
+                        CredentialType::KeychainRef(https_username_input.trim().to_string())
                     }
-                    CredentialType::KeychainRef(keychain_ref_input.trim().to_string())
+                    Err(e) => {
+                        eprintln!(
+                            "  {}: Failed to store HTTPS token in keychain: {}. Storing as plain text instead.",
+                            "Warning".yellow(),
+                            e
+                        );
+                        CredentialType::Token(token_input.trim().to_string())
+                    }
                 }
-                _ => unreachable!("Invalid selection for credential type"),
+            } else {
+                CredentialType::Token(token_input.trim().to_string())
             };
 
             new_profile.https_credentials = Some(HttpsCredentials {

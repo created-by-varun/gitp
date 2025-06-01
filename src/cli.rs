@@ -59,12 +59,12 @@ pub enum Commands {
         /// Username for HTTPS (requires --https-host).
         #[arg(long, requires = "https_host")]
         https_username: Option<String>,
-        /// Token for HTTPS (requires --https-host and --https-username; conflicts with --https-keychain-ref).
-        #[arg(long, requires_all = ["https_host", "https_username"], conflicts_with = "https_keychain_ref")]
+        /// Token for HTTPS (requires --https-host and --https-username when providing HTTPS credentials).
+        #[arg(long, requires_all = ["https_host", "https_username"])]
         https_token: Option<String>,
-        /// Keychain reference for HTTPS (requires --https-host and --https-username; conflicts with --https-token).
-        #[arg(long, requires_all = ["https_host", "https_username"], conflicts_with = "https_token")]
-        https_keychain_ref: Option<String>,
+        /// Store the provided --https-token in the system keychain (requires --https-host, --https-username, and --https-token).
+        #[arg(long, requires_all = ["https_host", "https_username", "https_token"])]
+        https_store_in_keychain: bool,
     },
 
     /// List all profiles

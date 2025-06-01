@@ -5,6 +5,7 @@ use colored::Colorize;
 mod cli;
 mod commands;
 mod config;
+mod credentials;
 mod git;
 mod ssh;
 mod utils;
@@ -38,7 +39,7 @@ fn run(cli: Cli) -> Result<()> {
             https_host,
             https_username,
             https_token,
-            https_keychain_ref,
+            https_store_in_keychain, // Destructuring updated
             ssh_key_host,
         } => {
             commands::new::execute(
@@ -51,7 +52,7 @@ fn run(cli: Cli) -> Result<()> {
                 https_host,
                 https_username,
                 https_token,
-                https_keychain_ref,
+                https_store_in_keychain, // Function call updated
                 ssh_key_host,
             )?;
         }
