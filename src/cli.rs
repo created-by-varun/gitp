@@ -47,6 +47,20 @@ pub enum Commands {
         /// GPG key ID for signing (for non-interactive mode)
         #[arg(long)]
         gpg_key_id: Option<String>,
+
+        // HTTPS Credentials (for non-interactive mode)
+        /// Hostname for HTTPS (e.g., github.com).
+        #[arg(long, group = "https_new_details")]
+        https_host: Option<String>,
+        /// Username for HTTPS (requires --https-host).
+        #[arg(long, requires = "https_host")]
+        https_username: Option<String>,
+        /// Token for HTTPS (requires --https-host and --https-username; conflicts with --https-keychain-ref).
+        #[arg(long, requires_all = ["https_host", "https_username"], conflicts_with = "https_keychain_ref")]
+        https_token: Option<String>,
+        /// Keychain reference for HTTPS (requires --https-host and --https-username; conflicts with --https-token).
+        #[arg(long, requires_all = ["https_host", "https_username"], conflicts_with = "https_token")]
+        https_keychain_ref: Option<String>,
     },
 
     /// List all profiles
@@ -101,6 +115,22 @@ pub enum Commands {
         /// New GPG key ID for signing (for non-interactive mode)
         #[arg(long)]
         gpg_key_id: Option<String>,
+
+        // HTTPS Credentials (for non-interactive mode)
+        /// New hostname for HTTPS (e.g., github.com).
+        #[arg(long, group = "https_edit_details")]
+        https_host: Option<String>,
+        /// New username for HTTPS (requires --https-host).
+        #[arg(long, requires = "https_host")]
+        https_username: Option<String>,
+        /// New token for HTTPS (requires --https-host and --https-username; conflicts with --https-keychain-ref).
+        /// To remove, provide an empty string with --https-token \"\" if host and username are specified.
+        #[arg(long, requires_all = ["https_host", "https_username"], conflicts_with = "https_keychain_ref")]
+        https_token: Option<String>,
+        /// New keychain reference for HTTPS (requires --https-host and --https-username; conflicts with --https-token).
+        /// To remove, provide an empty string with --https-keychain-ref \"\" if host and username are specified.
+        #[arg(long, requires_all = ["https_host", "https_username"], conflicts_with = "https_token")]
+        https_keychain_ref: Option<String>,
     },
 
     /// Remove a profile

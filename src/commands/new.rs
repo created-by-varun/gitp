@@ -1,8 +1,8 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
-use dialoguer::{theme::ColorfulTheme, Confirm, Input};
+use dialoguer::{theme::ColorfulTheme, Confirm, Input, Password};
 
-use crate::config::{Config, Profile, ValidationError};
+use crate::config::{Config, CredentialType, HttpsCredentials, Profile, ValidationError};
 
 pub fn execute(
     profile_name: String,
@@ -11,6 +11,10 @@ pub fn execute(
     cli_signing_key: Option<String>,
     cli_ssh_key_path: Option<String>,
     cli_gpg_key_id: Option<String>,
+    cli_https_host: Option<String>,
+    cli_https_username: Option<String>,
+    cli_https_token: Option<String>,
+    cli_https_keychain_ref: Option<String>,
 ) -> Result<()> {
     let mut config = Config::load().context("Failed to load configuration. Ensure ~/.config/gitp/config.toml is accessible or run init if applicable.")?;
 
@@ -53,6 +57,39 @@ pub fn execute(
         if let Some(id) = &cli_gpg_key_id {
             if !id.trim().is_empty() {
                 new_profile.gpg_key = Some(id.trim().to_string());
+            }
+        }
+
+        // Handle HTTPS credentials in non-interactive mode
+        if let (Some(host), Some(username)) = (&cli_https_host, &cli_https_username) {
+            if !host.trim().is_empty() && !username.trim().is_empty() {
+                let credential_detail = if let Some(token) = &cli_https_token {
+                    if !token.trim().is_empty() {
+                        Some(CredentialType::Token(token.trim().to_string()))
+                    } else {
+                        None
+                    }
+                } else if let Some(keychain_ref) = &cli_https_keychain_ref {
+                    if !keychain_ref.trim().is_empty() {
+                        Some(CredentialType::KeychainRef(keychain_ref.trim().to_string()))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                if let Some(cred_type) = credential_detail {
+                    new_profile.https_credentials = Some(HttpsCredentials {
+                        host: host.trim().to_string(),
+                        username: username.trim().to_string(),
+                        credential_type: cred_type,
+                    });
+                    println!(
+                        "  Configured HTTPS credentials for host: {}",
+                        host.trim().green()
+                    );
+                }
             }
         }
     } else {
@@ -105,6 +142,71 @@ pub fn execute(
             .context("Failed to get GPG key ID input.")?;
         if !gpg_key_id_input.trim().is_empty() {
             new_profile.gpg_key = Some(gpg_key_id_input.trim().to_string());
+        }
+
+        // HTTPS Credentials Interactive Prompts
+        println!("\n{}", "HTTPS Credentials (optional):".cyan());
+        let https_host_input: String = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Enter HTTPS host (e.g., github.com, leave blank to skip)")
+            .allow_empty(true)
+            .interact_text()
+            .context("Failed to get HTTPS host input.")?;
+
+        if !https_host_input.trim().is_empty() {
+            let https_username_input: String = Input::with_theme(&ColorfulTheme::default())
+                .with_prompt(format!(
+                    "Enter HTTPS username for host '{}'",
+                    https_host_input.trim()
+                ))
+                .interact_text()
+                .context("Failed to get HTTPS username input.")?;
+
+            if https_username_input.trim().is_empty() {
+                bail!("HTTPS username cannot be empty if host is provided. HTTPS credentials setup aborted.");
+            }
+
+            let credential_choices = &["Personal Access Token (PAT)", "System Keychain Reference"];
+            let credential_selection: usize =
+                dialoguer::Select::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Choose HTTPS credential type")
+                    .items(credential_choices)
+                    .default(0)
+                    .interact()
+                    .context("Failed to get credential type choice.")?;
+
+            let credential_type_value = match credential_selection {
+                0 => {
+                    // Token
+                    let token_input: String = Password::with_theme(&ColorfulTheme::default())
+                        .with_prompt("Enter Personal Access Token")
+                        .interact()
+                        .context("Failed to get token input.")?;
+                    if token_input.trim().is_empty() {
+                        bail!("Token cannot be empty. HTTPS credentials setup aborted.");
+                    }
+                    CredentialType::Token(token_input.trim().to_string())
+                }
+                1 => {
+                    // KeychainRef
+                    let keychain_ref_input: String = Input::with_theme(&ColorfulTheme::default())
+                        .with_prompt("Enter Keychain Reference string")
+                        .interact_text()
+                        .context("Failed to get keychain reference input.")?;
+                    if keychain_ref_input.trim().is_empty() {
+                        bail!(
+                            "Keychain reference cannot be empty. HTTPS credentials setup aborted."
+                        );
+                    }
+                    CredentialType::KeychainRef(keychain_ref_input.trim().to_string())
+                }
+                _ => unreachable!("Invalid selection for credential type"),
+            };
+
+            new_profile.https_credentials = Some(HttpsCredentials {
+                host: https_host_input.trim().to_string(),
+                username: https_username_input.trim().to_string(),
+                credential_type: credential_type_value,
+            });
         }
     }
 

@@ -34,6 +34,10 @@ fn run(cli: Cli) -> Result<()> {
             signing_key,
             ssh_key_path,
             gpg_key_id,
+            https_host,
+            https_username,
+            https_token,
+            https_keychain_ref,
         } => {
             commands::new::execute(
                 name,
@@ -42,6 +46,10 @@ fn run(cli: Cli) -> Result<()> {
                 signing_key,
                 ssh_key_path,
                 gpg_key_id,
+                https_host,
+                https_username,
+                https_token,
+                https_keychain_ref,
             )?;
         }
         Commands::List { verbose } => {
@@ -67,6 +75,10 @@ fn run(cli: Cli) -> Result<()> {
             signing_key,
             ssh_key_path,
             gpg_key_id,
+            https_host,
+            https_username,
+            https_token,
+            https_keychain_ref,
         } => {
             commands::edit::execute(
                 name,
@@ -75,6 +87,10 @@ fn run(cli: Cli) -> Result<()> {
                 signing_key,
                 ssh_key_path,
                 gpg_key_id,
+                https_host,
+                https_username,
+                https_token,
+                https_keychain_ref,
             )?;
         }
         Commands::Remove { name, force } => {
