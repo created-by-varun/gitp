@@ -8,7 +8,7 @@ A fast and intuitive git profile switcher written in Rust, with support for SSH 
 - 🔑 **SSH Support** - Manage different SSH keys for different profiles
 - 🌐 **Multi-scope** - Switch profiles globally or per-repository
 - 🎨 **User-friendly** - Intuitive CLI with colored output
-- 🔒 **Secure** - HTTPS credentials stored in system keychain (coming soon)
+- 🔒 **Secure** - HTTPS credentials can be stored in the system keychain
 - 🤖 **Auto-switching** - Automatically switch profiles based on repo URL (coming soon)
 
 ## Installation
@@ -80,7 +80,17 @@ gitp new work \
 gitp show work
 
 # Edit existing profile
-gitp edit work
+gitp edit work # Opens interactive mode
+
+# Edit specific fields, including HTTPS credentials:
+gitp edit work \
+  --https-host github.com \
+  --https-username myuser \
+  --https-token "ghp_xxxxxxxxxxxxxxxxxxxx" \
+  --https-store-in-keychain # Store the token in system keychain
+
+# Remove HTTPS credentials from a profile (and keychain if stored there):
+gitp edit work --https-remove-credentials
 
 # Remove a profile
 gitp remove work
@@ -126,12 +136,12 @@ ssh_key = "~/.ssh/id_rsa_personal"
 
 - [x] Basic profile management (create, list, switch, remove)
 - [x] Global git config switching
-- [ ] SSH key management and SSH config generation
-- [ ] Local (per-repository) profile switching
-- [ ] HTTPS credential management via system keychain
+- [x] SSH key management and SSH config generation
+- [x] Local (per-repository) profile switching
+- [x] HTTPS credential management via system keychain
 - [ ] Auto-switching based on repository URLs
 - [ ] Profile templates and inheritance
-- [ ] Import/export profiles
+- [x] Import/export profiles
 - [ ] Shell prompt integration
 - [ ] Homebrew formula and AUR package
 
@@ -146,7 +156,9 @@ gitp/
 │   ├── cli.rs           # CLI definitions
 │   ├── commands/        # Command implementations
 │   ├── config/          # Configuration management
+│   ├── credentials/     # Credential management (keychain, tokens)
 │   ├── git/             # Git operations
+│   ├── ssh/             # SSH configuration management
 │   └── utils/           # Utilities
 ├── tests/               # Integration tests
 └── Cargo.toml
@@ -180,12 +192,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under either of
-
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
-
-at your option.
+This project is licensed under the MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT).
 
 ## Acknowledgments
 
