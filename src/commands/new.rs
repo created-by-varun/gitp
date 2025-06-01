@@ -15,6 +15,7 @@ pub fn execute(
     cli_https_username: Option<String>,
     cli_https_token: Option<String>,
     cli_https_keychain_ref: Option<String>,
+    cli_ssh_key_host: Option<String>,
 ) -> Result<()> {
     let mut config = Config::load().context("Failed to load configuration. Ensure ~/.config/gitp/config.toml is accessible or run init if applicable.")?;
 
@@ -52,6 +53,12 @@ pub fn execute(
         if let Some(path) = &cli_ssh_key_path {
             if !path.trim().is_empty() {
                 new_profile.ssh_key = Some(path.trim().into());
+                // If SSH key path is provided, check for SSH key host
+                if let Some(host) = &cli_ssh_key_host {
+                    if !host.trim().is_empty() {
+                        new_profile.ssh_key_host = Some(host.trim().to_string());
+                    }
+                }
             }
         }
         if let Some(id) = &cli_gpg_key_id {
@@ -133,6 +140,16 @@ pub fn execute(
             .context("Failed to get SSH key path input.")?;
         if !ssh_key_path_input.trim().is_empty() {
             new_profile.ssh_key = Some(ssh_key_path_input.trim().into());
+
+            let ssh_key_host_input: String = Input::with_theme(&ColorfulTheme::default())
+                .with_prompt("Enter SSH key host (e.g., github.com, gitlab.mycompany.com)")
+                .allow_empty(false) // Host cannot be empty if key is provided
+                .interact_text()
+                .context("Failed to get SSH key host input.")?;
+            if !ssh_key_host_input.trim().is_empty() {
+                // Redundant check due to allow_empty(false), but good practice
+                new_profile.ssh_key_host = Some(ssh_key_host_input.trim().to_string());
+            }
         }
 
         let gpg_key_id_input: String = Input::with_theme(&ColorfulTheme::default())
@@ -225,6 +242,9 @@ pub fn execute(
                     "Invalid GPG key format for '{}'. Expected 8, 16, or 40 hex characters.",
                     key
                 )
+            }
+            ValidationError::EmptySshKeyHost => {
+                "SSH key host cannot be empty when an SSH key is provided.".to_string()
             }
             ValidationError::EmptyHttpsHost => {
                 "HTTPS credentials host cannot be empty.".to_string()

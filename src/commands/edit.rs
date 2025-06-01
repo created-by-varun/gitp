@@ -16,6 +16,7 @@ pub fn execute(
     cli_https_username: Option<String>,
     cli_https_token: Option<String>,
     cli_https_keychain_ref: Option<String>,
+    cli_ssh_key_host: Option<String>,
 ) -> Result<()> {
     let mut config = Config::load().context("Failed to load configuration.")?;
 
@@ -32,7 +33,8 @@ pub fn execute(
         || cli_https_host.is_some()
         || cli_https_username.is_some()
         || cli_https_token.is_some()
-        || cli_https_keychain_ref.is_some();
+        || cli_https_keychain_ref.is_some()
+        || cli_ssh_key_host.is_some();
 
     if is_non_interactive {
         println!(
@@ -75,10 +77,28 @@ pub fn execute(
         if let Some(path) = cli_ssh_key_path {
             if path.trim().is_empty() {
                 profile_to_edit.ssh_key = None;
-                println!("  {} SSH key path.", "Removed".yellow());
+                profile_to_edit.ssh_key_host = None; // Clear host if key path is cleared
+                println!("  {} SSH key path and host.", "Removed".yellow());
             } else {
                 profile_to_edit.ssh_key = Some(PathBuf::from(path.trim()));
                 println!("  Updated SSH key path to: {}", path.trim().green());
+                // Handle ssh_key_host only if ssh_key_path was provided
+                if let Some(host) = cli_ssh_key_host.as_deref() {
+                    // Use as_deref to work with &str
+                    if host.trim().is_empty() {
+                        profile_to_edit.ssh_key_host = None;
+                        println!("  {} SSH key host.", "Removed".yellow());
+                    } else {
+                        profile_to_edit.ssh_key_host = Some(host.trim().to_string());
+                        println!("  Updated SSH key host to: {}", host.trim().green());
+                    }
+                } else if profile_to_edit.ssh_key.is_some()
+                    && profile_to_edit.ssh_key_host.is_none()
+                {
+                    // If ssh_key_path was just set and no host was provided via CLI, but one might be needed.
+                    // This case is tricky for non-interactive. Validation will catch it if host is required.
+                    // Or, we might decide CLI must provide host if path is given and new.
+                }
             }
         }
 
@@ -352,10 +372,26 @@ pub fn execute(
             .allow_empty(true)
             .interact_text()
             .context("Failed to get SSH key path input.")?;
-        profile_to_edit.ssh_key = if new_ssh_key_str.trim().is_empty() {
-            None
+        if new_ssh_key_str.trim().is_empty() {
+            profile_to_edit.ssh_key = None;
+            profile_to_edit.ssh_key_host = None; // Clear host if key path is cleared
         } else {
-            Some(PathBuf::from(new_ssh_key_str.trim()))
+            profile_to_edit.ssh_key = Some(PathBuf::from(new_ssh_key_str.trim()));
+            // If a new SSH key path is set, prompt for the host
+            let new_ssh_key_host_str = Input::with_theme(&ColorfulTheme::default())
+                .with_prompt("Enter SSH key host (e.g., github.com, required if SSH key is set)")
+                .default(profile_to_edit.ssh_key_host.clone().unwrap_or_default())
+                .allow_empty(false) // Host cannot be empty if key is provided
+                .interact_text()
+                .context("Failed to get SSH key host input.")?;
+            if new_ssh_key_host_str.trim().is_empty() {
+                // Should not happen due to allow_empty(false)
+                // This case implies an issue or a desire to clear, but validation will prevent empty if key is set.
+                // For safety, if somehow empty, treat as wanting to clear, though validation should catch this logic error.
+                profile_to_edit.ssh_key_host = None;
+            } else {
+                profile_to_edit.ssh_key_host = Some(new_ssh_key_host_str.trim().to_string());
+            }
         };
 
         // Associated GPG Key ID
@@ -377,18 +413,41 @@ pub fn execute(
     // Validate the modified profile
     if let Err(validation_error) = profile_to_edit.validate() {
         let error_message = match validation_error {
-            crate::config::ValidationError::EmptyName => "Profile name cannot be empty.".to_string(),
-            crate::config::ValidationError::EmptyUserName => "User name cannot be empty.".to_string(),
-            crate::config::ValidationError::EmptyEmail => "User email cannot be empty.".to_string(),
-            crate::config::ValidationError::InvalidEmail(email) => format!("Invalid email format: '{}'.", email),
-            crate::config::ValidationError::SshKeyNotFound(path) => format!("SSH key not found: '{}'.", path.display()),
-            crate::config::ValidationError::InvalidGpgKeyFormat(key) => {
-                format!("Invalid GPG key format for '{}'. Expected 8, 16, or 40 hex characters.", key)
+            crate::config::ValidationError::EmptyName => {
+                "Profile name cannot be empty.".to_string()
             }
-            crate::config::ValidationError::EmptyHttpsHost => "HTTPS credentials host cannot be empty.".to_string(),
-            crate::config::ValidationError::EmptyHttpsUsername => "HTTPS credentials username cannot be empty.".to_string(),
-            crate::config::ValidationError::EmptyHttpsToken => "HTTPS credentials token cannot be empty when type is Token.".to_string(),
-            crate::config::ValidationError::EmptyHttpsKeychainRef => "HTTPS credentials keychain reference cannot be empty when type is KeychainRef.".to_string(),
+            crate::config::ValidationError::EmptyUserName => {
+                "User name cannot be empty.".to_string()
+            }
+            crate::config::ValidationError::EmptyEmail => "User email cannot be empty.".to_string(),
+            crate::config::ValidationError::InvalidEmail(email) => {
+                format!("Invalid email format: '{}'.", email)
+            }
+            crate::config::ValidationError::SshKeyNotFound(path) => {
+                format!("SSH key not found: '{}'.", path.display())
+            }
+            crate::config::ValidationError::InvalidGpgKeyFormat(key) => {
+                format!(
+                    "Invalid GPG key format for '{}'. Expected 8, 16, or 40 hex characters.",
+                    key
+                )
+            }
+            crate::config::ValidationError::EmptySshKeyHost => {
+                "SSH key host cannot be empty when an SSH key is provided.".to_string()
+            }
+            crate::config::ValidationError::EmptyHttpsHost => {
+                "HTTPS credentials host cannot be empty.".to_string()
+            }
+            crate::config::ValidationError::EmptyHttpsUsername => {
+                "HTTPS credentials username cannot be empty.".to_string()
+            }
+            crate::config::ValidationError::EmptyHttpsToken => {
+                "HTTPS credentials token cannot be empty when type is Token.".to_string()
+            }
+            crate::config::ValidationError::EmptyHttpsKeychainRef => {
+                "HTTPS credentials keychain reference cannot be empty when type is KeychainRef."
+                    .to_string()
+            }
         };
         bail!(
             "Profile validation failed after edits: {}\nChanges not saved.",

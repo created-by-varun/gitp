@@ -24,9 +24,8 @@ fn get_config_path() -> Result<PathBuf> {
         .join(CONFIG_DIR_NAME);
 
     if !config_dir.exists() {
-        fs::create_dir_all(&config_dir).with_context(|| {
-            format!("Failed to create config directory at {:?}", config_dir)
-        })?;
+        fs::create_dir_all(&config_dir)
+            .with_context(|| format!("Failed to create config directory at {:?}", config_dir))?;
     }
 
     Ok(config_dir.join(CONFIG_FILE_NAME))
@@ -40,9 +39,8 @@ pub fn load_config_from_storage() -> Result<ConfigStorage> {
         return Ok(ConfigStorage::default());
     }
 
-    let config_content = fs::read_to_string(&config_path).with_context(|| {
-        format!("Failed to read config file from {:?}", config_path)
-    })?;
+    let config_content = fs::read_to_string(&config_path)
+        .with_context(|| format!("Failed to read config file from {:?}", config_path))?;
 
     if config_content.trim().is_empty() {
         // If the file is empty, treat it as a default configuration
@@ -58,8 +56,8 @@ pub fn load_config_from_storage() -> Result<ConfigStorage> {
 pub fn save_config_to_storage(config: &ConfigStorage) -> Result<()> {
     let config_path = get_config_path()?;
 
-    let toml_string = toml::to_string_pretty(config)
-        .context("Failed to serialize config to TOML string")?;
+    let toml_string =
+        toml::to_string_pretty(config).context("Failed to serialize config to TOML string")?;
 
     fs::write(&config_path, toml_string)
         .with_context(|| format!("Failed to write config to {:?}", config_path))?;
@@ -86,19 +84,19 @@ mod tests {
 
     #[test]
     fn test_get_config_path_creates_dir() -> Result<()> {
-        let temp_dir = tempdir()?;
+        let _temp_dir = tempdir()?;
         let mock_user_config_dir = temp_dir.path();
 
         // This test relies on dirs::config_dir() returning a path that we can intercept
         // or predict. For a real unit test, you'd mock `dirs::config_dir()`.
         // For now, we'll assume it works and test the subdir creation.
         let expected_gitp_dir = mock_user_config_dir.join(CONFIG_DIR_NAME);
-        
+
         // To make this testable without full mocking of `dirs`, we'd need to refactor
         // `get_config_path` to take the base config dir as an argument.
         // For now, let's simulate by checking if we can create a similar structure.
         assert!(!expected_gitp_dir.exists());
-        
+
         // Manually create the structure for testing the logic if `get_config_path` was refactored
         // fs::create_dir_all(&expected_gitp_dir)?;
         // assert!(expected_gitp_dir.exists());
@@ -106,7 +104,7 @@ mod tests {
         // The actual `get_config_path` will use the real config dir.
         // This test is more illustrative of what to test if `dirs` was mockable here.
         let _ = get_config_path(); // Call it to ensure it runs, though direct assertion is hard here
-        
+
         // We expect `~/.config/gitp` to be created if it doesn't exist by `get_config_path`.
         // This is hard to assert in a sandboxed unit test without actual filesystem side effects
         // or heavy mocking of `dirs` and `fs`.
@@ -116,12 +114,12 @@ mod tests {
 
     #[test]
     fn test_load_non_existent_config_returns_default() -> Result<()> {
-        let temp_dir = tempdir()?;
+        let _temp_dir = tempdir()?;
         // Override where `get_config_path` looks by temporarily changing env vars if possible,
         // or by refactoring `get_config_path` to be testable.
         // For this example, we assume `get_config_path` will point to a non-existent file
         // if we use a fresh temp dir and don't create `config.toml`.
-        
+
         // To properly test this, `get_config_path` should be mockable or take base_dir.
         // Let's assume `get_config_path` is modified to use a base path for testing:
         // fn get_config_path_for_test(base: &Path) -> PathBuf { base.join(CONFIG_DIR_NAME).join(CONFIG_FILE_NAME) }
@@ -158,11 +156,14 @@ mod tests {
                 user_signingkey: None,
             },
             ssh_key: None,
+            ssh_key_host: None, // Added missing field
             gpg_key: None,
             https_credentials: None,
             custom_config: HashMap::new(),
         };
-        original_config.profiles.insert("test_profile".to_string(), profile1);
+        original_config
+            .profiles
+            .insert("test_profile".to_string(), profile1);
         original_config.current_profile = Some("test_profile".to_string());
 
         // Assume `save_config_to_storage` and `load_config_from_storage` use a mockable `get_config_path`
@@ -179,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_load_empty_config_file_returns_default() -> Result<()> {
-        let temp_dir = tempdir()?;
+        let _temp_dir = tempdir()?;
         // let config_path = get_config_path_for_test(temp_dir.path()); // Assuming refactor
         // fs::write(&config_path, "")?;
         // let config = load_config_from_storage(&config_path)?;
@@ -187,9 +188,9 @@ mod tests {
         Ok(())
     }
 
-     #[test]
+    #[test]
     fn test_load_invalid_toml_config_file_returns_error() -> Result<()> {
-        let temp_dir = tempdir()?;
+        let _temp_dir = tempdir()?;
         // let config_path = get_config_path_for_test(temp_dir.path()); // Assuming refactor
         // fs::write(&config_path, "this is not valid toml")?;
         // let result = load_config_from_storage(&config_path);

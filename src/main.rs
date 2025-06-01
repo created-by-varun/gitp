@@ -6,6 +6,7 @@ mod cli;
 mod commands;
 mod config;
 mod git;
+mod ssh;
 mod utils;
 
 use cli::{Cli, Commands};
@@ -38,6 +39,7 @@ fn run(cli: Cli) -> Result<()> {
             https_username,
             https_token,
             https_keychain_ref,
+            ssh_key_host,
         } => {
             commands::new::execute(
                 name,
@@ -50,6 +52,7 @@ fn run(cli: Cli) -> Result<()> {
                 https_username,
                 https_token,
                 https_keychain_ref,
+                ssh_key_host,
             )?;
         }
         Commands::List { verbose } => {
@@ -79,6 +82,7 @@ fn run(cli: Cli) -> Result<()> {
             https_username,
             https_token,
             https_keychain_ref,
+            ssh_key_host,
         } => {
             commands::edit::execute(
                 name,
@@ -91,6 +95,7 @@ fn run(cli: Cli) -> Result<()> {
                 https_username,
                 https_token,
                 https_keychain_ref,
+                ssh_key_host,
             )?;
         }
         Commands::Remove { name, force } => {

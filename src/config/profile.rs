@@ -15,6 +15,10 @@ pub struct Profile {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ssh_key: Option<PathBuf>,
 
+    /// Hostname for the SSH key (e.g., github.com)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_key_host: Option<String>,
+
     /// GPG signing key
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gpg_key: Option<String>,
@@ -76,6 +80,7 @@ impl Profile {
                 user_signingkey: None,
             },
             ssh_key: None,
+            ssh_key_host: None,
             gpg_key: None,
             https_credentials: None,
             custom_config: HashMap::new(),
@@ -107,11 +112,21 @@ impl Profile {
             ));
         }
 
-        // Validate SSH key path if provided
+        // Validate SSH key path and associated host if provided
         if let Some(ref ssh_key) = self.ssh_key {
             if !ssh_key.exists() {
                 return Err(ValidationError::SshKeyNotFound(ssh_key.clone()));
             }
+            // If ssh_key is present, ssh_key_host must also be present and non-empty
+            match &self.ssh_key_host {
+                Some(host) if !host.trim().is_empty() => { /* Host is valid */ }
+                _ => return Err(ValidationError::EmptySshKeyHost),
+            }
+        } else {
+            // If ssh_key is None, ssh_key_host should also ideally be None or its presence ignored.
+            // For now, we don't add a validation error if ssh_key_host is Some when ssh_key is None,
+            // as the primary use case is generating SSH config which requires both.
+            // This state might be prevented by CLI logic or cleaned up.
         }
 
         // Validate GPG key format if provided
@@ -175,6 +190,9 @@ pub enum ValidationError {
 
     #[error("Invalid GPG key format: {0}. Expected 8, 16, or 40 hex characters.")]
     InvalidGpgKeyFormat(String),
+
+    #[error("SSH key host cannot be empty when an SSH key is provided")]
+    EmptySshKeyHost,
 
     #[error("HTTPS credentials host cannot be empty")]
     EmptyHttpsHost,

@@ -48,6 +48,10 @@ pub enum Commands {
         #[arg(long)]
         gpg_key_id: Option<String>,
 
+        /// Hostname for the SSH key (e.g., github.com, requires --ssh-key-path)
+        #[arg(long, requires = "ssh_key_path")]
+        ssh_key_host: Option<String>,
+
         // HTTPS Credentials (for non-interactive mode)
         /// Hostname for HTTPS (e.g., github.com).
         #[arg(long, group = "https_new_details")]
@@ -115,6 +119,11 @@ pub enum Commands {
         /// New GPG key ID for signing (for non-interactive mode)
         #[arg(long)]
         gpg_key_id: Option<String>,
+
+        /// New hostname for the SSH key (e.g., github.com, requires --ssh-key-path)
+        /// To remove, provide an empty string if --ssh-key-path is also specified.
+        #[arg(long, requires = "ssh_key_path")]
+        ssh_key_host: Option<String>,
 
         // HTTPS Credentials (for non-interactive mode)
         /// New hostname for HTTPS (e.g., github.com).

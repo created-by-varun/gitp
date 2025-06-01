@@ -4,6 +4,8 @@ use colored::Colorize;
 
 use crate::config::Config;
 use crate::git::{set_git_config, unset_git_config, GitConfigScope};
+use crate::ssh::ssh_config;
+use std::path::PathBuf;
 
 pub fn execute(name: String, local: bool, global: bool) -> Result<()> {
     let mut config = Config::load().context("Failed to load configuration.")?;
@@ -80,6 +82,23 @@ pub fn execute(name: String, local: bool, global: bool) -> Result<()> {
 
     // TODO: Add logic for ssh_key and gpg_key if they influence git config directly (e.g. core.sshCommand, gpg.program)
     // For now, they are informational or for other tools.
+
+    // Update SSH configuration for all profiles
+    println!("Updating SSH configuration based on all gitp profiles...");
+    let mut ssh_entries_for_config_update: Vec<(String, PathBuf, Option<String>)> = Vec::new();
+    for profile in config.profiles.values() {
+        if let (Some(key_path_str), Some(host_str)) = (&profile.ssh_key, &profile.ssh_key_host) {
+            ssh_entries_for_config_update.push((
+                host_str.clone(),
+                PathBuf::from(key_path_str),
+                None, // Use default SSH user (git)
+            ));
+        }
+    }
+
+    ssh_config::update_ssh_config(&ssh_entries_for_config_update)
+        .context("Failed to update SSH configuration.")?;
+    println!("SSH configuration updated successfully.");
 
     // Update current profile in gitp config
     config.current_profile = Some(name.clone());
