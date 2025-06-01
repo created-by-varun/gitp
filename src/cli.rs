@@ -129,18 +129,33 @@ pub enum Commands {
     },
     /// Display the current Git user name, email, and signing key
     Current,
-    // /// Export a profile
-    // Export {
-    //     /// Profile name
-    //     name: String,
-    // },
+    /// Export a profile to a TOML file or stdout
+    Export {
+        /// Name of the profile to export
+        name: String,
 
-    // /// Import a profile
-    // Import {
-    //     /// Path to profile file
-    //     #[arg(default_value = "-")]
-    //     path: String,
-    // },
+        /// Optional path to save the exported profile (e.g., profile.toml).
+        /// If not provided, the profile will be printed to stdout.
+        #[arg(short, long)]
+        output_path: Option<String>,
+    },
+
+    /// Import a profile from a TOML file or stdin
+    Import {
+        /// Path to the TOML file to import the profile from.
+        /// Use "-" or omit to read from stdin.
+        #[arg(default_value = "-")]
+        input_path: String, // clap handles default_value, so String is fine
+
+        /// Optional name to save the imported profile as.
+        /// If not provided, uses the 'name' field from the imported file.
+        #[arg(short, long)]
+        profile_name: Option<String>,
+
+        /// Overwrite existing profile if it has the same name
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 #[derive(Subcommand, Debug, Clone)]

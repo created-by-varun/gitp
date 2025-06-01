@@ -86,6 +86,16 @@ fn run(cli: Cli) -> Result<()> {
         Commands::SshKey { command } => {
             commands::ssh_key::execute(command)?;
         }
+        Commands::Export { name, output_path } => {
+            commands::export::execute(name, output_path)?;
+        }
+        Commands::Import {
+            input_path,
+            profile_name,
+            force,
+        } => {
+            commands::import::execute(input_path, profile_name, force)?;
+        }
     }
 
     Ok(())
