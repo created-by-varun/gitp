@@ -1,3 +1,61 @@
-fn main() {
-    println!("Hello, world!");
+use anyhow::Result;
+use clap::Parser;
+use colored::Colorize;
+
+mod cli;
+mod commands;
+mod config;
+mod git;
+mod utils;
+
+use cli::{Cli, Commands};
+
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+
+    // Set up colored output based on environment
+    colored::control::set_override(cli.color);
+
+    match run(cli) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            eprintln!("{} {}", "Error:".red().bold(), e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn run(cli: Cli) -> Result<()> {
+    match cli.command {
+        Commands::New { name, interactive } => {
+            commands::new::execute(name, interactive)?;
+        }
+        Commands::List { verbose } => {
+            commands::list::execute(verbose)?;
+        }
+        Commands::Use {
+            name,
+            local,
+            global,
+        } => {
+            commands::use_profile::execute(name, local, global)?;
+        }
+        Commands::Current { show_config } => {
+            commands::current::execute(show_config)?;
+        }
+        Commands::Show { name } => {
+            commands::show::execute(name)?;
+        }
+        Commands::Edit { name } => {
+            commands::edit::execute(name)?;
+        }
+        Commands::Remove { name, force } => {
+            commands::remove::execute(name, force)?;
+        }
+        Commands::Rename { old_name, new_name } => {
+            commands::rename::execute(old_name, new_name)?;
+        }
+    }
+
+    Ok(())
 }
