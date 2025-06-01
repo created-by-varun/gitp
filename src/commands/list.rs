@@ -34,7 +34,7 @@ pub fn execute(verbose: bool) -> Result<()> {
         }
 
         println!();
-        println!("{}", "* = current profile".dim());
+        println!("{}", ("* = current profile" as &str).dimmed());
     }
 
     Ok(())
@@ -47,7 +47,7 @@ fn print_profile_detailed(name: &str, profile: &Profile, current_profile: Option
             "{} {} {}",
             "●".green().bold(),
             name.green().bold(),
-            "(current)".dim()
+            ("(current)" as &str).dimmed()
         );
     } else {
         println!("{} {}", "●".white(), name.bold());
@@ -80,25 +80,35 @@ fn print_profile_detailed(name: &str, profile: &Profile, current_profile: Option
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*; // Not strictly needed if only testing specific items explicitly
     use crate::config::Profile;
-    use std::collections::HashMap;
+    // use std::collections::HashMap; // Not used in these specific tests yet
 
     #[test]
     fn test_empty_profile_list() {
         // This would need proper mocking of Config::load()
         // For now, this is a placeholder to show the testing approach
+        // Example of how it might look with a mock:
+        // let mut mock_config = Config::default();
+        // let result = execute_with_config(&mock_config, false); // execute would need refactoring
+        // assert!(result.is_ok());
+        // Check stdout for "No profiles found"
     }
 
     #[test]
     fn test_profile_formatting() {
-        let profile = Profile::new(
+        let _profile = Profile::new(
+            // Mark as unused for now if not asserted against
             "test".to_string(),
             "Test User".to_string(),
             "test@example.com".to_string(),
         );
 
         // Test that profile details are formatted correctly
-        // This would be expanded with actual formatting tests
+        // This would be expanded with actual formatting tests. For example:
+        // let mut output = Vec::new(); // To capture output
+        // print_profile_detailed_to_writer("test", &profile, None, &mut output).unwrap();
+        // let output_str = String::from_utf8(output).unwrap();
+        // assert!(output_str.contains("Test User"));
     }
 }

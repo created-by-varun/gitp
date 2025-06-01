@@ -81,11 +81,6 @@ impl Profile {
         }
     }
 
-    /// Create a profile builder
-    pub fn builder(name: String) -> ProfileBuilder {
-        ProfileBuilder::new(name)
-    }
-
     /// Validate profile configuration
     pub fn validate(&self) -> Result<(), ValidationError> {
         if self.name.is_empty() {
@@ -136,79 +131,6 @@ pub enum ValidationError {
     SshKeyNotFound(PathBuf),
 }
 
-/// Builder for creating profiles
-pub struct ProfileBuilder {
-    name: String,
-    user_name: Option<String>,
-    user_email: Option<String>,
-    user_signingkey: Option<String>,
-    ssh_key: Option<PathBuf>,
-    gpg_key: Option<String>,
-    custom_config: HashMap<String, String>,
-}
-
-impl ProfileBuilder {
-    pub fn new(name: String) -> Self {
-        Self {
-            name,
-            user_name: None,
-            user_email: None,
-            user_signingkey: None,
-            ssh_key: None,
-            gpg_key: None,
-            custom_config: HashMap::new(),
-        }
-    }
-
-    pub fn user_name(mut self, name: String) -> Self {
-        self.user_name = Some(name);
-        self
-    }
-
-    pub fn user_email(mut self, email: String) -> Self {
-        self.user_email = Some(email);
-        self
-    }
-
-    pub fn user_signingkey(mut self, key: String) -> Self {
-        self.user_signingkey = Some(key);
-        self
-    }
-
-    pub fn ssh_key(mut self, path: PathBuf) -> Self {
-        self.ssh_key = Some(path);
-        self
-    }
-
-    pub fn gpg_key(mut self, key: String) -> Self {
-        self.gpg_key = Some(key);
-        self
-    }
-
-    pub fn custom_config(mut self, key: String, value: String) -> Self {
-        self.custom_config.insert(key, value);
-        self
-    }
-
-    pub fn build(self) -> Result<Profile, &'static str> {
-        let user_name = self.user_name.ok_or("User name is required")?;
-        let user_email = self.user_email.ok_or("User email is required")?;
-
-        Ok(Profile {
-            name: self.name,
-            git_config: GitConfig {
-                user_name,
-                user_email,
-                user_signingkey: self.user_signingkey,
-            },
-            ssh_key: self.ssh_key,
-            gpg_key: self.gpg_key,
-            https_credentials: None,
-            custom_config: self.custom_config,
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,20 +147,6 @@ mod tests {
         assert_eq!(profile.git_config.user_name, "John Doe");
         assert_eq!(profile.git_config.user_email, "john@company.com");
         assert!(profile.ssh_key.is_none());
-    }
-
-    #[test]
-    fn test_profile_builder() {
-        let profile = Profile::builder("personal".to_string())
-            .user_name("Jane Doe".to_string())
-            .user_email("jane@example.com".to_string())
-            .ssh_key(PathBuf::from("~/.ssh/id_rsa"))
-            .build()
-            .unwrap();
-
-        assert_eq!(profile.name, "personal");
-        assert_eq!(profile.git_config.user_name, "Jane Doe");
-        assert_eq!(profile.ssh_key, Some(PathBuf::from("~/.ssh/id_rsa")));
     }
 
     #[test]
