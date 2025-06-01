@@ -22,6 +22,7 @@ pub fn store_token(target_host: &str, username_or_profile: &str, token: &str) ->
 /// Retrieves an HTTPS token from the system keychain.
 /// `target_host` is used to construct the service name.
 /// `username_or_profile` is the account name for the entry.
+#[allow(dead_code)]
 pub fn retrieve_token(target_host: &str, username_or_profile: &str) -> Result<String> {
     let service_name = format!("{}{}", KEYRING_SERVICE_PREFIX, target_host);
     let entry = Entry::new(&service_name, username_or_profile)?;

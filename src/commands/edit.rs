@@ -4,6 +4,7 @@ use dialoguer::{theme::ColorfulTheme, Confirm, Input, Password};
 use std::path::PathBuf;
 
 use crate::config::{Config, CredentialType, HttpsCredentials};
+use crate::credentials::keyring::{delete_token, store_token}; // Added keyring imports
 
 pub fn execute(
     name: String,
@@ -15,7 +16,9 @@ pub fn execute(
     cli_https_host: Option<String>,
     cli_https_username: Option<String>,
     cli_https_token: Option<String>,
-    cli_https_keychain_ref: Option<String>,
+    // cli_https_keychain_ref: Option<String>, // Removed
+    cli_https_store_in_keychain: bool,
+    cli_https_remove_credentials: bool,
     cli_ssh_key_host: Option<String>,
 ) -> Result<()> {
     let mut config = Config::load().context("Failed to load configuration.")?;
@@ -33,7 +36,9 @@ pub fn execute(
         || cli_https_host.is_some()
         || cli_https_username.is_some()
         || cli_https_token.is_some()
-        || cli_https_keychain_ref.is_some()
+        // || cli_https_keychain_ref.is_some() // Removed
+        || cli_https_store_in_keychain // This is a bool, presence means non-interactive intent if other flags are set or if it's true
+        || cli_https_remove_credentials // Same for this flag
         || cli_ssh_key_host.is_some();
 
     if is_non_interactive {
@@ -113,86 +118,168 @@ pub fn execute(
         }
 
         // Handle HTTPS credentials in non-interactive mode
-        if let Some(host_cli_val) = &cli_https_host {
-            if host_cli_val.trim().is_empty() {
-                // Remove HTTPS credentials if host is provided as empty string
-                if profile_to_edit.https_credentials.is_some() {
-                    profile_to_edit.https_credentials = None;
-                    println!("  {} HTTPS credentials.", "Removed".yellow());
-                }
-            } else {
-                // Host is provided and not empty, username must also be provided (enforced by clap)
-                let username_cli_val = cli_https_username
-                    .as_ref()
-                    .expect("--https-username is required when --https-host is provided");
-                if username_cli_val.trim().is_empty() {
-                    bail!("HTTPS username cannot be set to empty in non-interactive mode when host is provided.");
-                }
-
-                let mut current_https_creds = profile_to_edit
-                    .https_credentials
-                    .take()
-                    .unwrap_or_else(|| HttpsCredentials {
-                        host: String::new(),
-                        username: String::new(),
-                        credential_type: CredentialType::Token(String::new()), // Placeholder, will be overwritten or removed
-                    });
-
-                current_https_creds.host = host_cli_val.trim().to_string();
-                current_https_creds.username = username_cli_val.trim().to_string();
-                println!(
-                    "  Updated HTTPS host to: {}",
-                    current_https_creds.host.green()
-                );
-                println!(
-                    "  Updated HTTPS username to: {}",
-                    current_https_creds.username.green()
-                );
-
-                let mut cred_updated = false;
-                if let Some(token_cli_val) = &cli_https_token {
-                    if token_cli_val.trim().is_empty() {
-                        // This case might be tricky if user wants to remove token but keep host/user.
-                        // For now, if token is empty string, we assume it means no specific update to token type from CLI.
-                        // If they want to remove token, they should remove the whole https_credential block by setting host to ""
-                        println!("  HTTPS token provided as empty, no change to credential type based on token.");
-                    } else {
-                        current_https_creds.credential_type =
-                            CredentialType::Token(token_cli_val.trim().to_string());
-                        println!("  Updated HTTPS credential to use Token.");
-                        cred_updated = true;
-                    }
-                } else if let Some(keychain_ref_cli_val) = &cli_https_keychain_ref {
-                    if keychain_ref_cli_val.trim().is_empty() {
-                        println!("  HTTPS keychain reference provided as empty, no change to credential type based on keychain ref.");
-                    } else {
-                        current_https_creds.credential_type =
-                            CredentialType::KeychainRef(keychain_ref_cli_val.trim().to_string());
-                        println!("  Updated HTTPS credential to use Keychain Reference.");
-                        cred_updated = true;
-                    }
-                }
-
-                // If neither token nor keychain_ref was provided via CLI but we had existing creds,
-                // ensure the credential_type is still valid or handle it.
-                // For now, if only host/username are changed, the existing credential_type is preserved.
-                // If no cred_updated and the placeholder Token(String::new()) is still there from a new HttpsCredentials, this is an invalid state.
-                // However, clap's 'requires_all' for token/keychain_ref on New command and similar logic should prevent this.
-                // For Edit, if user provides only host and username, we preserve existing credential type.
-                // If no existing credential type, and no new one provided, this is an issue if we just created HttpsCredentials.
-                // This logic assumes that if HttpsCredentials struct exists, its credential_type is valid.
-                if !cred_updated
-                    && matches!(current_https_creds.credential_type, CredentialType::Token(ref t) if t.is_empty())
-                    && profile_to_edit.https_credentials.is_none()
+        if cli_https_remove_credentials {
+            if let Some(existing_creds) = profile_to_edit.https_credentials.take() {
+                // Use take to remove it
+                if let CredentialType::KeychainRef(keychain_username) =
+                    existing_creds.credential_type
                 {
-                    // This means we created a new HttpsCredentials with a placeholder empty token, and no new token/keychain was given.
-                    // This state should ideally be prevented by CLI arg validation or a more robust state machine here.
-                    // For now, we'll remove it to avoid saving invalid state.
-                    println!("  HTTPS host and username provided, but no credential detail. Removing HTTPS credentials.");
+                    match delete_token(&existing_creds.host, &keychain_username) {
+                        Ok(_) => println!(
+                            "  Successfully deleted token for {}@{} from keychain.",
+                            keychain_username.cyan(),
+                            existing_creds.host.green()
+                        ),
+                        Err(e) => eprintln!(
+                            "  {}: Failed to delete token for {}@{} from keychain: {}. Please remove it manually if needed.",
+                            "Warning".yellow(),
+                            keychain_username.cyan(),
+                            existing_creds.host.green(),
+                            e
+                        ),
+                    }
+                }
+                println!(
+                    "  {} HTTPS credentials for host '{}'.",
+                    "Removed".yellow(),
+                    existing_creds.host.green()
+                );
+            } else {
+                println!(
+                    "  No HTTPS credentials found for profile '{}' to remove.",
+                    name.cyan()
+                );
+            }
+        } else if let Some(host_cli_val) = &cli_https_host {
+            // This block executes if --https-remove-credentials is false
+            // AND --https-host is Some (implies trying to set/update credentials).
+            // clap rules should ensure that if --https-host is Some, then --https-username is also Some.
+
+            let new_host_untrimmed = host_cli_val; // host_cli_val is &String from Option<&String>
+            let new_host = new_host_untrimmed.trim().to_string();
+
+            if new_host.is_empty() {
+                // This case should ideally not be reached if --https-remove-credentials is the way to remove.
+                // Or if clap validates that --https-host cannot be empty if provided for an update.
+                // For robustness, treat as a warning and no-op for HTTPS credentials.
+                eprintln!(
+                    "  {}: --https-host was provided as empty when not using --https-remove-credentials. No changes made to HTTPS credentials.",
+                    "Warning".yellow()
+                );
+            } else {
+                // Host is not empty. Username must be present (clap: requires = "https_host" on https_username).
+                let new_username = cli_https_username
+                    .as_ref()
+                    .map(|s| s.trim().to_string())
+                    .expect("--https-username is required by clap if --https-host is provided"); // Should be guaranteed by clap
+                if new_username.is_empty() {
+                    bail!("HTTPS username cannot be empty when --https-host is provided.");
+                }
+
+                // If --https-token is provided, we proceed to update/set credentials.
+                if let Some(new_token_val) = &cli_https_token {
+                    let new_token = new_token_val.trim().to_string();
+                    if new_token.is_empty() {
+                        bail!("HTTPS token cannot be set to empty in non-interactive mode. Use --https-remove-credentials to remove all HTTPS credentials, or provide a valid token.");
+                    }
+
+                    // Check if existing credentials need keychain cleanup
+                    let mut old_keychain_creds_to_delete: Option<(String, String)> = None;
+                    if let Some(ref existing_creds) = profile_to_edit.https_credentials {
+                        if let CredentialType::KeychainRef(ref old_keychain_username) =
+                            existing_creds.credential_type
+                        {
+                            // Conditions for deleting old keychain entry:
+                            // 1. Host is changing.
+                            // 2. Username (keychain service user) is changing for the same host.
+                            // 3. Host and username are the same, but user wants to switch from keychain to plain token.
+                            if existing_creds.host != new_host
+                                || (existing_creds.host == new_host
+                                    && old_keychain_username != &new_username)
+                                || (existing_creds.host == new_host
+                                    && old_keychain_username == &new_username
+                                    && !cli_https_store_in_keychain)
+                            {
+                                old_keychain_creds_to_delete = Some((
+                                    existing_creds.host.clone(),
+                                    old_keychain_username.clone(),
+                                ));
+                            }
+                        }
+                    }
+
+                    if let Some((old_h, old_u)) = old_keychain_creds_to_delete {
+                        match delete_token(&old_h, &old_u) {
+                            Ok(_) => println!(
+                                "  Successfully deleted previous token for {}@{} from keychain.",
+                                old_u.cyan(),
+                                old_h.green()
+                            ),
+                            Err(e) => eprintln!(
+                                "  {}: Failed to delete previous token for {}@{} from keychain: {}. Please check manually.",
+                                "Warning".yellow(),
+                                old_u.cyan(),
+                                old_h.green(),
+                                e
+                            ),
+                        }
+                    }
+
+                    let final_credential_type;
+                    if cli_https_store_in_keychain {
+                        match store_token(&new_host, &new_username, &new_token) {
+                            Ok(_) => {
+                                final_credential_type =
+                                    CredentialType::KeychainRef(new_username.clone());
+                                println!(
+                                    "  Successfully stored HTTPS token for {}@{} in keychain.",
+                                    new_username.cyan(),
+                                    new_host.green()
+                                );
+                            }
+                            Err(e) => {
+                                eprintln!(
+                                    "  {}: Failed to store token in keychain: {}. Falling back to plain text storage in config.",
+                                    "Warning".yellow(),
+                                    e
+                                );
+                                final_credential_type = CredentialType::Token(new_token.clone());
+                            }
+                        }
+                    } else {
+                        final_credential_type = CredentialType::Token(new_token.clone());
+                        println!(
+                            "  Set HTTPS token for {}@{} (stored in config file).",
+                            new_username.cyan(),
+                            new_host.green()
+                        );
+                    }
+
+                    profile_to_edit.https_credentials = Some(HttpsCredentials {
+                        host: new_host.clone(),
+                        username: new_username.clone(),
+                        credential_type: final_credential_type,
+                    });
+                    println!("  Updated HTTPS credentials for profile '{}'.", name.cyan());
                 } else {
-                    profile_to_edit.https_credentials = Some(current_https_creds);
+                    // --https-host and --https-username provided, but --https-token is None.
+                    // This means the user is trying to change host/username without providing a new token.
+                    // This scenario is complex: what happens to the old token/keychain_ref?
+                    // For simplicity in non-interactive, we will not modify existing token/keychain_ref if only host/user are changed without a new token.
+                    // The old credentials (if any) will remain associated with their original host/user.
+                    // A new entry is not created. User should use --https-remove-credentials and then add new ones, or provide all three.
+                    println!(
+                        "  {}: --https-host and --https-username provided without --https-token. ",
+                        "Info".blue()
+                    );
+                    println!("  To set or update a token, please provide --https-host, --https-username, and --https-token together.");
+                    println!("  No changes made to HTTPS credentials based on host/username alone without a token.");
                 }
             }
+        } else {
+            // No HTTPS related flags were provided for an update (and not removing either)
+            // This means no changes to HTTPS credentials in this non-interactive run.
+            // This branch is needed to ensure the if/else if chain has a fallthrough for the Result type if other non-interactive flags were set.
         }
     } else {
         println!("Editing profile: {}", name.cyan().bold());
@@ -236,77 +323,133 @@ pub fn execute(
                 .context("Failed to get HTTPS host input.")?;
 
             if https_host_input.trim().is_empty() {
-                if profile_to_edit.https_credentials.is_some() {
+                if let Some(ref actual_current_creds) = current_https_creds {
+                    // Use the cloned current_https_creds
+                    if let CredentialType::KeychainRef(ref keychain_username_to_delete) =
+                        actual_current_creds.credential_type
+                    {
+                        match delete_token(&actual_current_creds.host, keychain_username_to_delete) {
+                            Ok(_) => println!(
+                                "  Successfully deleted token for {}@{} from keychain.",
+                                keychain_username_to_delete.cyan(),
+                                actual_current_creds.host.green()
+                            ),
+                            Err(e) => eprintln!(
+                                "  {}: Failed to delete token for {}@{} from keychain: {}. Please remove it manually if needed.",
+                                "Warning".yellow(),
+                                keychain_username_to_delete.cyan(),
+                                actual_current_creds.host.green(),
+                                e
+                            ),
+                        }
+                    }
                     profile_to_edit.https_credentials = None;
                     println!("  {}", "HTTPS credentials removed.".yellow());
+                } else {
+                    // No current credentials to remove, so do nothing.
+                    println!("  No HTTPS credentials were set to remove.");
                 }
             } else {
-                let https_username_input: String = Input::with_theme(&ColorfulTheme::default())
+                let new_host = https_host_input.trim().to_string();
+                let new_username: String = Input::with_theme(&ColorfulTheme::default())
                     .with_prompt("HTTPS Username")
                     .default(
                         current_https_creds
                             .as_ref()
-                            .filter(|c| c.host == https_host_input.trim())
+                            .filter(|c| c.host == new_host)
                             .map_or_else(String::new, |c| c.username.clone()),
                     )
                     .interact_text()
                     .context("Failed to get HTTPS username input.")?;
 
-                if https_username_input.trim().is_empty() {
+                if new_username.trim().is_empty() {
                     bail!("HTTPS username cannot be empty if host is provided. HTTPS credentials setup aborted.");
                 }
+                let actual_new_username = new_username.trim().to_string();
 
-                let credential_choices =
-                    &["Personal Access Token (PAT)", "System Keychain Reference"];
-                let current_type_idx =
-                    current_https_creds
-                        .as_ref()
-                        .map_or(0, |c| match c.credential_type {
-                            CredentialType::Token(_) => 0,
-                            CredentialType::KeychainRef(_) => 1,
-                        });
+                let store_in_keychain = Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Store this HTTPS token securely in the system keychain?")
+                    .default(true)
+                    .interact()?;
 
-                let credential_selection: usize =
-                    dialoguer::Select::with_theme(&ColorfulTheme::default())
-                        .with_prompt("Choose HTTPS credential type")
-                        .items(credential_choices)
-                        .default(current_type_idx)
-                        .interact()
-                        .context("Failed to get credential type choice.")?;
+                let new_token: String = Password::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Enter Personal Access Token")
+                    .interact()
+                    .context("Failed to get token input.")?;
+                if new_token.trim().is_empty() {
+                    bail!("Token cannot be empty. HTTPS credentials setup aborted.");
+                }
+                let actual_new_token = new_token.trim().to_string();
 
-                let credential_type_value = match credential_selection {
-                    0 => {
-                        // Token
-                        let token_input: String = Password::with_theme(&ColorfulTheme::default())
-                            .with_prompt("Enter Personal Access Token")
-                            .interact()
-                            .context("Failed to get token input.")?;
-                        if token_input.trim().is_empty() {
-                            bail!("Token cannot be empty. HTTPS credentials setup aborted.");
+                // Delete old keychain entry if necessary (before setting new credentials)
+                if let Some(ref old_creds) = current_https_creds {
+                    if let CredentialType::KeychainRef(ref old_keychain_username) =
+                        old_creds.credential_type
+                    {
+                        let changing_host = old_creds.host != new_host;
+                        let changing_username = old_keychain_username != &actual_new_username;
+                        let switching_to_plain_text = !store_in_keychain;
+
+                        if changing_host
+                            || (old_creds.host == new_host && changing_username)
+                            || (old_creds.host == new_host
+                                && old_keychain_username == &actual_new_username
+                                && switching_to_plain_text)
+                        {
+                            match delete_token(&old_creds.host, old_keychain_username) {
+                                Ok(_) => println!(
+                                    "  Successfully deleted previous token for {}@{} from keychain.",
+                                    old_keychain_username.cyan(),
+                                    old_creds.host.green()
+                                ),
+                                Err(e) => eprintln!(
+                                    "  {}: Failed to delete previous token for {}@{} from keychain: {}. Please check manually.",
+                                    "Warning".yellow(),
+                                    old_keychain_username.cyan(),
+                                    old_creds.host.green(),
+                                    e
+                                ),
+                            }
                         }
-                        CredentialType::Token(token_input.trim().to_string())
                     }
-                    1 => {
-                        // KeychainRef
-                        let keychain_ref_input: String =
-                            Input::with_theme(&ColorfulTheme::default())
-                                .with_prompt("Enter Keychain Reference string")
-                                .interact_text()
-                                .context("Failed to get keychain reference input.")?;
-                        if keychain_ref_input.trim().is_empty() {
-                            bail!("Keychain reference cannot be empty. HTTPS credentials setup aborted.");
+                }
+
+                let final_credential_type;
+                if store_in_keychain {
+                    match store_token(&new_host, &actual_new_username, &actual_new_token) {
+                        Ok(_) => {
+                            final_credential_type =
+                                CredentialType::KeychainRef(actual_new_username.clone());
+                            println!(
+                                "  Successfully stored HTTPS token for {}@{} in keychain.",
+                                actual_new_username.cyan(),
+                                new_host.green()
+                            );
                         }
-                        CredentialType::KeychainRef(keychain_ref_input.trim().to_string())
+                        Err(e) => {
+                            eprintln!(
+                                "  {}: Failed to store token in keychain: {}. Falling back to plain text storage in config.",
+                                "Warning".yellow(),
+                                e
+                            );
+                            final_credential_type = CredentialType::Token(actual_new_token.clone());
+                        }
                     }
-                    _ => unreachable!(), // Should not happen with Select
-                };
+                } else {
+                    final_credential_type = CredentialType::Token(actual_new_token.clone());
+                    println!(
+                        "  Set HTTPS token for {}@{} (stored in config file).",
+                        actual_new_username.cyan(),
+                        new_host.green()
+                    );
+                }
 
                 profile_to_edit.https_credentials = Some(HttpsCredentials {
-                    host: https_host_input.trim().to_string(),
-                    username: https_username_input.trim().to_string(),
-                    credential_type: credential_type_value,
+                    host: new_host,
+                    username: actual_new_username,
+                    credential_type: final_credential_type,
                 });
-                println!("  {}", "HTTPS credentials configured.".green());
+                println!("  HTTPS credentials updated.");
             }
         } else if profile_to_edit.https_credentials.is_some() {
             // User chose not to configure/update, but creds exist
@@ -315,6 +458,28 @@ pub fn execute(
                 .default(true)
                 .interact()?
             {
+                // User chose to remove existing credentials
+                if let Some(ref actual_current_creds) = current_https_creds {
+                    // Use the cloned current_https_creds
+                    if let CredentialType::KeychainRef(ref keychain_username_to_delete) =
+                        actual_current_creds.credential_type
+                    {
+                        match delete_token(&actual_current_creds.host, keychain_username_to_delete) {
+                            Ok(_) => println!(
+                                "  Successfully deleted token for {}@{} from keychain.",
+                                keychain_username_to_delete.cyan(),
+                                actual_current_creds.host.green()
+                            ),
+                            Err(e) => eprintln!(
+                                "  {}: Failed to delete token for {}@{} from keychain: {}. Please remove it manually if needed.",
+                                "Warning".yellow(),
+                                keychain_username_to_delete.cyan(),
+                                actual_current_creds.host.green(),
+                                e
+                            ),
+                        }
+                    }
+                }
                 profile_to_edit.https_credentials = None;
                 println!(
                     "  {}",

@@ -82,8 +82,8 @@ pub fn print_profile_detailed(name: &str, profile: &Profile, current_profile: Op
             crate::config::CredentialType::Token(_) => {
                 println!("    {} {}", "Type:".cyan(), "Token (<masked>)".dimmed());
             }
-            crate::config::CredentialType::KeychainRef(reference) => {
-                println!("    {} Keychain Ref ({})", "Type:".cyan(), reference);
+            crate::config::CredentialType::KeychainRef(_) => { // Reference string (username) is already part of the host/user line
+                println!("    {} {}", "Type:".cyan(), "Stored in System Keychain".yellow());
             }
         }
     }

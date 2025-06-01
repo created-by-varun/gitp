@@ -82,7 +82,8 @@ fn run(cli: Cli) -> Result<()> {
             https_host,
             https_username,
             https_token,
-            https_keychain_ref,
+            https_store_in_keychain,  // Updated field
+            https_remove_credentials, // Updated field
             ssh_key_host,
         } => {
             commands::edit::execute(
@@ -95,7 +96,8 @@ fn run(cli: Cli) -> Result<()> {
                 https_host,
                 https_username,
                 https_token,
-                https_keychain_ref,
+                https_store_in_keychain,  // Pass updated field
+                https_remove_credentials, // Pass updated field
                 ssh_key_host,
             )?;
         }

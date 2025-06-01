@@ -126,20 +126,21 @@ pub enum Commands {
         ssh_key_host: Option<String>,
 
         // HTTPS Credentials (for non-interactive mode)
-        /// New hostname for HTTPS (e.g., github.com).
-        #[arg(long, group = "https_edit_details")]
+        /// New hostname for HTTPS (e.g., github.com). Conflicts with --https-remove-credentials.
+        #[arg(long, group = "https_edit_details_group", conflicts_with = "https_remove_credentials")]
         https_host: Option<String>,
-        /// New username for HTTPS (requires --https-host).
-        #[arg(long, requires = "https_host")]
+        /// New username for HTTPS (requires --https-host). Conflicts with --https-remove-credentials.
+        #[arg(long, requires = "https_host", conflicts_with = "https_remove_credentials")]
         https_username: Option<String>,
-        /// New token for HTTPS (requires --https-host and --https-username; conflicts with --https-keychain-ref).
-        /// To remove, provide an empty string with --https-token \"\" if host and username are specified.
-        #[arg(long, requires_all = ["https_host", "https_username"], conflicts_with = "https_keychain_ref")]
+        /// New token for HTTPS (requires --https-host and --https-username). Conflicts with --https-remove-credentials.
+        #[arg(long, requires_all = ["https_host", "https_username"], conflicts_with = "https_remove_credentials")]
         https_token: Option<String>,
-        /// New keychain reference for HTTPS (requires --https-host and --https-username; conflicts with --https-token).
-        /// To remove, provide an empty string with --https-keychain-ref \"\" if host and username are specified.
-        #[arg(long, requires_all = ["https_host", "https_username"], conflicts_with = "https_token")]
-        https_keychain_ref: Option<String>,
+        /// Store the provided --https-token in the system keychain (requires --https-host, --https-username, and --https-token). Conflicts with --https-remove-credentials.
+        #[arg(long, requires_all = ["https_host", "https_username", "https_token"], conflicts_with = "https_remove_credentials")]
+        https_store_in_keychain: bool,
+        /// Remove existing HTTPS credentials from the profile. Conflicts with providing new HTTPS details.
+        #[arg(long, conflicts_with_all = ["https_host", "https_username", "https_token", "https_store_in_keychain"])]
+        https_remove_credentials: bool,
     },
 
     /// Remove a profile
