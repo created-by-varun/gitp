@@ -36,7 +36,8 @@ cargo install gitp
 1. **Create a profile**:
 
    ```bash
-   gitp new work --interactive
+   # Enter interactive mode
+   gitp new work
    # Or with flags
    gitp new personal --email "me@example.com" --name "John Doe"
    ```
