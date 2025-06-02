@@ -9,6 +9,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["git", "profile", "ssh", "cli", "switcher"]
 categories = ["command-line-utilities", "development-tools"]
+exclude = ["Cargo.toml.orig", "project-plan.md"]
 
 [[bin]]
 name = "gitp"
